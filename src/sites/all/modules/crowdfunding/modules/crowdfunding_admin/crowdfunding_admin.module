@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Code for the Minka - Crowdfunding Admin feature.
+ */
+include_once 'crowdfunding_admin.features.inc';
+
+/**
+ * Implements hook_theme().
+ */
+function crowdfunding_admin_theme() {
+  return array(
+    'crowdfunding_admin_overview_page' => array(
+      'template' => 'tpl/ProjectAdminOverviewPage',
+      'variables' => array(
+        'Project' => NULL,
+        'reports' => NULL
+      ),
+    ),
+  );
+}

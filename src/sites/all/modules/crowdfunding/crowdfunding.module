@@ -1,0 +1,290 @@
+<?php
+
+/**
+ * @file
+ */
+define('CROWDFUNDING_DEFAULT_ERROR_MESSAGE', 'Ops! We had un unexpected error. Our team was notified and will fix it asap.');
+define('CROWDFUNDING_PROJECT_STATUS_START', 1);
+define('CROWDFUNDING_CONTRIBUTION_CANCELED', 'canceled');
+define('CROWDFUNDING_CONTRIBUTION_PROCESSING', 'processing');
+define('CROWDFUNDING_CONTRIBUTION_AUTHORIZED', 'payment_authorized');
+define('CROWDFUNDING_CONTRIBUTION_COMPLETED', 'completed');
+
+require_once 'crowdfunding.forms.inc';
+
+/**
+ * Implements hook_views_api().
+ */
+function crowdfunding_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'crowdfunding') . '/views',
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function crowdfunding_node_info() {
+  $items = array(
+    'crowdfunding_project' => array(
+      'name' => t('Crowdfunding Project'),
+      'base' => 'node_content',
+      'has_title' => '1',
+      'title_label' => t('Title'),
+      'description' => t('A crowdfunding project is a way to group pledges and financial contributions.'),
+      'help' => t('Here you should define the funding goal and timeframe for the funding process to happen.'),
+    ),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_commerce_line_item_type_info().
+ */
+function crowdfunding_commerce_line_item_type_info() {
+  return array(
+    'crowdfunding_pledge' => array(
+      'name' => t('Crowdfunding pledge'),
+      'description' => t('A financial pledge to a crowdfunding project.'),
+      'product' => TRUE,
+      'add_form_submit_value' => t('Pledge'),
+      'base' => 'commerce_product_line_item',
+    ),
+  );
+}
+
+/**
+ * Implements hook_commerce_product_type_info().
+ */
+function crowdfunding_commerce_product_type_info() {
+  $items = array(
+    'crowdfunding_no_reward' => array(
+      'type' => 'crowdfunding_no_reward',
+      'name' => t('Crowdfunding pledge without reward'),
+      'description' => t('This type of pledge is used when people only want to contribute to the project.'),
+      'help' => '',
+      'revision' => 1,
+    ),
+    'crowdfunding_reward' => array(
+      'type' => 'crowdfunding_reward',
+      'name' => t('Crowdfunding reward'),
+      'description' => t('A reward to a financial pledge of a crowdfunding project'),
+      'help' => '',
+      'revision' => 1,
+    ),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function crowdfunding_permission() {
+  return array(
+    'Crowdfunding admin' => array(
+      'title' => t('Have admin rights over the crowdfunding workflow.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_insert().
+ * Process the crowdfunding project data for new Crowdfunding Project nodes.
+ */
+function crowdfunding_node_insert($node) {
+  if ($node->type == 'crowdfunding_project') {
+    db_insert('crowdfunding_project')
+      ->fields(array(
+        'nid' => $node->nid,
+        'status' => CROWDFUNDING_PROJECT_STATUS_START,
+        'goal' => $node->goal,
+        'funded' => 0,
+        'percentual' => 0,
+        'backers' => '',
+        'backers_amount' => 0,
+        'valid_contributions' => '',
+        'valid_contributions_amount' => 0,
+        'funding_start' => mktime(0, 0, 0, $node->funding_start['month'], $node->funding_start['day'], $node->funding_start['year']),
+        'funding_end' => mktime(0, 0, 0, $node->funding_end['month'], $node->funding_end['day'], $node->funding_end['year']),
+      ))
+      ->execute();
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ * Process the crowdfunding project data for updated Crowdfunding Project nodes.
+ */
+function crowdfunding_node_update($node) {
+  if ($node->type == 'crowdfunding_project') {
+    db_update('crowdfunding_project')
+      ->fields(array(
+        'funded' => $node->funded,
+        'percentual' => $node->percentual,
+        'backers' => json_encode($node->backers),
+        'backers_amount' => $node->backers_amount,
+        'valid_contributions' => json_encode($node->valid_contributions),
+        'valid_contributions_amount' => $node->valid_contributions_amount,
+      ))
+      ->condition('nid', $node->nid)
+      ->execute();
+  }
+}
+
+function crowdfunding_node_load($nodes, $types) {
+  if (in_array('crowdfunding_project', $types)) {
+    foreach ($nodes as $node) {
+      $crowdfunding_data = db_select('crowdfunding_project', 'c')
+        ->fields('c', array(
+          'nid',
+          'status',
+          'goal',
+          'funded',
+          'percentual',
+          'backers',
+          'backers_amount',
+          'valid_contributions',
+          'valid_contributions_amount',
+          'funding_start',
+          'funding_end',
+        ))
+        ->condition('nid', $node->nid)
+        ->execute()->fetchAllAssoc('nid');
+
+      unset($crowdfunding_data[$node->nid]->nid);
+      if (!empty($crowdfunding_data)) {
+
+        $crowdfunding_data = get_object_vars($crowdfunding_data[$node->nid]);
+        $node->status = $crowdfunding_data['status'];
+        $node->goal = $crowdfunding_data['goal'];
+        $node->funded = $crowdfunding_data['funded'];
+        $node->percentual = $crowdfunding_data['percentual'];
+        $node->backers = _decode_json($crowdfunding_data['backers']);
+        $node->backers_amount = $crowdfunding_data['backers_amount'];
+        $node->valid_contributions = _decode_json($crowdfunding_data['valid_contributions']);
+        $node->valid_contributions_amount = $crowdfunding_data['valid_contributions_amount'];
+        $node->funding_start = $crowdfunding_data['funding_start'];
+        $node->funding_end = $crowdfunding_data['funding_end'];
+      }
+    }
+  }
+}
+
+/**
+ * Renders the crowdfunding data items
+ */
+function crowdfunding_node_view($node, $view_mode, $langcode) {
+  if ($node->type == 'crowdfunding_project') {
+    if ($view_mode == 'full') {
+      return \Drupal\crowdfunding\ViewModes\CrowdfundingProject::viewModeFull($node, $view_mode, $langcode);
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function crowdfunding_entity_update($entity, $entity_type) {
+  if ($entity_type == 'commerce_order') {
+    /**
+     * Check if the Order went into a "valid" status and, if true, update the
+     * preprocessed data about the project
+     */
+    $update_type = \Drupal\crowdfunding\Model\Contribution::identifyStatusChange($entity->order_id, $entity->status);
+    if ($update_type) {
+      $Contribution = new Drupal\crowdfunding\Model\Contribution($entity->order_id);
+      $project = $Contribution->getProject();
+
+      if ($update_type === 1) {
+        $backer = $Contribution->get('owner')->value();
+        if (!is_array($project->backers)) {
+          $project->backers = array();
+        }
+        if (!isset($project->backers[$backer->uid])) {
+          $project->backers[$backer->uid] = array();
+        }
+        $project->backers[$backer->uid][$Contribution->created->value()] = array(
+          'order_id' => $Contribution->getIdentifier(),
+        );
+        $project->backers_amount = count($project->backers);
+        if (!is_array($project->valid_contributions)) {
+          $project->valid_contributions = array();
+        }
+        $project->valid_contributions[] = $Contribution->getIdentifier();
+        $project->valid_contributions_amount += 1;
+        $commerce_order_total = $Contribution->commerce_order_total->value();
+        $project->funded += $commerce_order_total['amount'];
+        $project->percentual = ($project->funded / $project->goal) * 100;
+      }
+      if ($update_type === -1) {
+        $backer = $Contribution->get('owner')->value();
+        if (
+          isset($project->backers[$backer->uid]) &&
+          isset($project->backers[$backer->uid][$Contribution->created->value()])
+        ) {
+          unset($project->backers[$backer->uid][$Contribution->created->value()]);
+          if (empty($project->backers[$backer->uid])) {
+            unset($project->backers[$backer->uid]);
+          }
+        }
+        $project->backers_amount = count($project->backers);
+        if (($key = array_search($Contribution->getIdentifier(), $project->valid_contributions)) !== FALSE) {
+          unset($project->valid_contributions[$key]);
+        }
+        $project->valid_contributions_amount = count($project->valid_contributions);
+        $commerce_order_total = $Contribution->commerce_order_total->value();
+        $project->funded -= $commerce_order_total['amount'];
+        $project->percentual = $project->funded / $project->goal;
+      }
+      node_save($project);
+      entity_get_controller('node')->resetCache(array($project->nid));
+    }
+  }
+}
+
+function _decode_json($data) {
+  return is_object(json_decode($data, TRUE)) ? get_object_vars(json_decode($data, TRUE)) : json_decode($data, TRUE);
+}
+
+/**
+ * Implementing hook_theme().
+ */
+function crowdfunding_theme() {
+  return array(
+    'crowdfunding_results_node_view' => array(
+      'arguments' => array(
+        'backers_amount' => '',
+        'goal' => '',
+        'funded' => '',
+        'time_remaining' => '',
+        'time_remaining_text' => ''
+      ),
+      'template' => 'tpl/crowdfunding-results-node-view',
+    ),
+    'crowdfunding_reward_options_node_view' => array(
+      'arguments' => array('reward_options' => array()),
+      'template' => 'tpl/crowdfunding-reward-options-node-view',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
+function crowdfunding_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  if ($router_item['path'] == 'node/%/crowdfunding-rewards') {
+    $item = menu_get_item('admin/commerce/products/add/crowdfunding-reward');
+    if ($item['access']) {
+      $destination = drupal_get_destination();
+      $item['localized_options']['query'] = array(
+        'field_crowdfunding_project_ref' => $router_item['page_arguments'][2],
+        'destination' => $destination['destination']
+      );
+      $data['actions']['output'][] = array(
+        '#theme' => 'menu_local_action',
+        '#link' => $item,
+      );
+    }
+  }
+}

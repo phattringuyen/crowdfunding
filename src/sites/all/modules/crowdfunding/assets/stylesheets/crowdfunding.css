@@ -1,0 +1,36 @@
+/* line 3, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project .field-name-body,
+.node.node-crowdfunding-project #reward-options {
+  float: left;
+  width: 65%;
+}
+/* line 7, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project .field-name-body:after,
+.node.node-crowdfunding-project #reward-options:after {
+  display: table;
+  content: '';
+}
+/* line 12, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project #crowdfunding-overview {
+  float: right;
+  width: 30%;
+  background: #f6f6f6;
+  font-family: Arial;
+}
+/* line 18, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project #crowdfunding-overview .inner {
+  padding: 10px 20px;
+}
+/* line 21, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project #crowdfunding-overview p {
+  margin: 0;
+  font-weight: bold;
+}
+/* line 25, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project #crowdfunding-overview .value {
+  font-size: 36px;
+}
+/* line 28, ../sass/crowdfunding.scss */
+.node.node-crowdfunding-project #crowdfunding-overview .label {
+  font-size: 14px;
+}

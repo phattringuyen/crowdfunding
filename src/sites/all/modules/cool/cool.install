@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function cool_schema() {
+  $schema = [];
+  $classes = \Drupal\cool\Loader::mapImplementationsAvailable('Schema', '\Drupal\cool\SchemaInterface');
+  foreach ($classes as $class) {
+    $CoolClass = new $class();
+    $schema[$CoolClass->getTableName()] = [];
+    $schema[$CoolClass->getTableName()]['fields'] = $CoolClass->getSchemaFieldsDefinition();
+    foreach ($CoolClass->getSchemaExtraInfoDefinition() as $key => $extra_info) {
+      $schema[$CoolClass->getTableName()][$key] = $extra_info;
+    }
+  }
+  return $schema;
+}

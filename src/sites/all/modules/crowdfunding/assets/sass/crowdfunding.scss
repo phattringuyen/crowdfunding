@@ -1,0 +1,32 @@
+.node.node-crowdfunding-project {
+  .field-name-body,
+  #reward-options {
+    float: left;
+    width: 65%;
+    
+    &:after {
+      display: table;
+      content: '';
+    }
+  }
+  #crowdfunding-overview {
+    float: right;
+    width: 30%;
+    background: #f6f6f6;
+    font-family: Arial;
+
+    .inner {
+      padding: 10px 20px;
+    }
+    p {
+      margin: 0;
+      font-weight: bold;
+    }
+    .value {
+      font-size: 36px;
+    }
+    .label {
+      font-size: 14px;
+    }
+  }
+}

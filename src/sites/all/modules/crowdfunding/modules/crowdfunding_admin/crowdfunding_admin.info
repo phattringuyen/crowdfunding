@@ -1,0 +1,27 @@
+name = Crowdfunding Admin
+description = Default proposed administrative interface for Crowdfunding module
+core = 7.x
+package = Crowdfunding
+version = 7.x-1.0-alpha1
+project = crowdfunding_admin
+dependencies[] = cool
+dependencies[] = crowdfunding
+dependencies[] = features
+dependencies[] = views
+dependencies[] = views_megarow
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:2
+features[views_view][] = crowdfunding_backers
+features[views_view][] = crowdfunding_contributions
+features[views_view][] = crowdfunding_project_contributions
+features[views_view][] = crowdfunding_project_rewards
+features[views_view][] = crowdfunding_projects
+features[views_view][] = crowdfunding_projects_rewards
+features[views_view][] = crowdfunding_user_contributions
+
+; Information added by Drupal.org packaging script on 2016-03-14
+version = "7.x-1.0-alpha5"
+core = "7.x"
+project = "crowdfunding"
+datestamp = "1457964458"
+

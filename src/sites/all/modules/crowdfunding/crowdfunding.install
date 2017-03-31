@@ -1,0 +1,368 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function crowdfunding_schema() {
+  $schema = array();
+  $schema['crowdfunding_project'] = array(
+    'description' => 'The base table for crowdfunding projects.',
+    'fields' => array(
+      'nid' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'status' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'goal' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'initial' => 0,
+      ),
+      'funded' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'initial' => 0,
+      ),
+      'percentual' => array(
+        'type' => 'int',
+        'size' => 'small',
+        'not null' => TRUE,
+        'initial' => 0,
+      ),
+      'backers' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+        'initial' => '',
+      ),
+      'backers_amount' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'initial' => 0,
+      ),
+      'valid_contributions' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+        'initial' => '',
+      ),
+      'valid_contributions_amount' => array(
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'initial' => 0,
+      ),
+      'funding_start' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'funding_end' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'unique keys' => array(
+      'nid' => array('nid'),
+    ),
+    'foreign keys' => array(
+      'nid' => array(
+        'table' => 'node',
+        'columns' => array('nid' => 'nid'),
+      ),
+    ),
+  );
+  return $schema;
+}
+
+function crowdfunding_install() {
+  // Ensure the crowdfunding_project node type is available.
+  node_types_rebuild();
+  $types = node_type_get_types();
+  node_add_body_field($types['crowdfunding_project']);
+
+  ################# FIELD PROJECT REF #################
+  // Check if the field_crowdfunding_project_ref field exists and, if not, create
+  $field = _get_field_crowdfunding_project_ref_definition();
+  $info = field_info_field('field_crowdfunding_project_ref');
+  if (empty($info)) {
+    field_create_field($field);
+  }
+  // Check if the field_crowdfunding_project_ref instances exists and, if not, create them
+  // Commerce Order
+  $instance = _get_field_crowdfunding_project_ref_instance('commerce_order', 'commerce_order');
+  $info_instance = field_info_instance('commerce_order', 'field_crowdfunding_project_ref', 'commerce_order');
+  if (empty($info_instance)) {
+    field_create_instance($instance);
+  }
+  // Commerce Product
+  $instance = _get_field_crowdfunding_project_ref_instance('commerce_product', 'crowdfunding_reward');
+  $info_instance = field_info_instance('commerce_product', 'field_crowdfunding_project_ref', 'crowdfunding_reward');
+  if (empty($info_instance)) {
+    field_create_instance($instance);
+  }
+  $instance = _get_field_crowdfunding_project_ref_instance('commerce_product', 'crowdfunding_no_reward');
+  $info_instance = field_info_instance('commerce_product', 'field_crowdfunding_project_ref', 'crowdfunding_no_reward');
+  if (empty($info_instance)) {
+    field_create_instance($instance);
+  }
+  ################# FIELD PROJECT REF - end #################
+
+  ################# FIELD TEXT #################
+  // Check if the field_crowdfunding_text field exists and, if not, create
+  $field = _get_field_crowdfunding_text_definition();
+  $info = field_info_field('field_crowdfunding_text');
+  if (empty($info)) {
+    field_create_field($field);
+  }
+  // Check if the field_crowdfunding_text instances exists and, if not, create them
+  // Commerce Product
+  $instance = _get_field_crowdfunding_text_instance('commerce_product', 'crowdfunding_reward');
+  $info_instance = field_info_instance('commerce_product', 'field_crowdfunding_text', 'crowdfunding_reward');
+  if (empty($info_instance)) {
+    field_create_instance($instance);
+  }
+  ################# FIELD TEXT - end #################
+
+  ################# FIELD_PLEDGED_AMOUNT #################
+  // Check if the field_pledged_amount field exists and, if not, create
+  $field = _get_field_pledged_amount_definition();
+  $info = field_info_field('field_pledged_amount');
+  if (empty($info)) {
+    field_create_field($field);
+  }
+  // Check if the field_pledged_amount instances exists and, if not, create them
+  // Commerce Product
+  $instance = _get_field_pledged_amount_instance('commerce_line_item', 'crowdfunding_pledge');
+  $info_instance = field_info_instance('commerce_line_item', 'field_pledged_amount', 'crowdfunding_pledge');
+  if (empty($info_instance)) {
+    field_create_instance($instance);
+  }
+  ################# FIELD_PLEDGED_AMOUNT - end #################
+}
+
+/**
+ * Useful while developing and defining the fields to use
+ */
+//function crowdfunding_enable() {
+//}
+
+function _get_field_crowdfunding_project_ref_definition() {
+  return array(
+    'field_name' => 'field_crowdfunding_project_ref',
+    'type' => 'entityreference',
+    'entity_types' => array('commerce_order', 'commerce_product'),
+    'translatable' => FALSE,
+    'locked' => FALSE,
+    'settings' => array(
+      'target_type' => 'node',
+      'handler' => 'base',
+      'handler_submit' => 'Change handler',
+      'handler_settings' => array('target_bundles' => array('crowdfunding_project')),
+    ),
+    'cardinality' => 1,
+  );
+}
+
+function _get_field_crowdfunding_project_ref_instance($entity_type, $bundle) {
+  return array(
+    'field_name' => 'field_crowdfunding_project_ref',
+    'entity_type' => $entity_type,
+    'bundle' => $bundle,
+    'label' => t('Project'),
+    'required' => TRUE,
+    'settings' => array(
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'weight' => 20,
+      'type' => 'entityreference_autocomplete',
+      'module' => 'entityreference',
+      'active' => TRUE,
+      'settings' => array(
+        'match_operator' => 'CONTAINS',
+        'size' => 60,
+        'path' => '',
+      ),
+    ),
+    'display' => array(
+      'default' => array(
+        'label' => 'above',
+        'type' => 'entityreference_label',
+        'module' => 'entityreference',
+        'weight' => 3,
+        'settings' => array(
+          'link' => '',
+        ),
+      ),
+    ),
+  );
+}
+
+function _get_field_crowdfunding_text_definition() {
+  return array(
+    'field_name' => 'field_crowdfunding_text',
+    'type' => 'text_long',
+    'entity_types' => array('commerce_product'),
+    'translatable' => FALSE,
+    'locked' => FALSE,
+    'module' => 'text',
+    'settings' => array(),
+    'cardinality' => 1,
+  );
+}
+
+function _get_field_crowdfunding_text_instance($entity_type, $bundle) {
+  return array(
+    'field_name' => 'field_crowdfunding_text',
+    'entity_type' => $entity_type,
+    'bundle' => $bundle,
+    'label' => t('Text'),
+    'required' => FALSE,
+    'settings' => array(
+      'text_processing' => FALSE,
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'weight' => -20,
+      'type' => 'text_textarea',
+      'module' => 'text',
+      'active' => 1,
+      'settings' => array(
+        'rows' => 5,
+      ),
+    ),
+    'display' => array(
+      'default' => array(
+        'label' => 'above',
+        'type' => 'text_default',
+        'settings' => array(),
+        'module' => 'text',
+        'weight' => 2,
+      ),
+    ),
+  );
+}
+
+function _get_field_pledged_amount_definition() {
+  return array(
+    'entity_types' => array(
+      0 => 'commerce_line_item',
+    ),
+    'translatable' => '0',
+    'settings' => array(),
+    'storage' => array(
+      'type' => 'field_sql_storage',
+      'settings' => array(),
+      'module' => 'field_sql_storage',
+      'active' => '1',
+    ),
+    'foreign keys' => array(),
+    'indexes' => array(
+      'currency_price' => array(
+        0 => 'amount',
+        1 => 'currency_code',
+      ),
+    ),
+    'id' => '10',
+    'field_name' => 'field_pledged_amount',
+    'type' => 'commerce_price',
+    'module' => 'commerce_price',
+    'active' => '1',
+    'locked' => '1',
+    'cardinality' => '1',
+    'deleted' => '0',
+    'columns' => array(
+      'amount' => array(
+        'description' => 'The price amount.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'currency_code' => array(
+        'description' => 'The currency code for the price.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ),
+      'data' => array(
+        'description' => 'A serialized array of additional price data.',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+        'serialize' => TRUE,
+      ),
+    ),
+    'bundles' => array(
+      'commerce_line_item' => array(
+        1 => 'crowdfunding_pledge',
+      ),
+    ),
+  );
+}
+
+function _get_field_pledged_amount_instance() {
+  return array(
+    'description' => '',
+    'id' => '24',
+    'field_id' => '10',
+    'field_name' => 'field_pledged_amount',
+    'entity_type' => 'commerce_line_item',
+    'bundle' => 'crowdfunding_pledge',
+    'deleted' => '0',
+    'default_value' => NULL,
+    'label' => 'Pledged amount',
+    'required' => TRUE,
+    'settings' => array(
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'type' => 'commerce_price_full',
+      'weight' => 0,
+      'settings' => array(
+        'currency_code' => 'default',
+      ),
+      'module' => 'commerce_price',
+    ),
+    'display' => array(
+      'display' => array(
+        'label' => 'hidden',
+        'type' => 'commerce_price_formatted_amount',
+        'settings' => array(
+          'calculation' => FALSE,
+        ),
+        'weight' => 0,
+        'module' => 'commerce_price',
+      ),
+      'default' => array(
+        'label' => 'hidden',
+        'type' => 'commerce_price_formatted_amount',
+        'settings' => array(
+          'calculation' => FALSE,
+        ),
+        'weight' => 0,
+        'module' => 'commerce_price',
+      ),
+      'node_teaser' => array(
+        'label' => 'hidden',
+        'type' => 'commerce_price_formatted_amount',
+        'settings' => array(
+          'calculation' => FALSE,
+        ),
+        'weight' => 0,
+        'module' => 'commerce_price',
+      ),
+    ),
+  );
+}
